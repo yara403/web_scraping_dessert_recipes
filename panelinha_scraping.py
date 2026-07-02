@@ -1,12 +1,13 @@
 import requests
 from bs4 import BeautifulSoup
+import re
 
 base_url = 'https://panelinha.com.br/categoria/doces'
 
 def get_html(url):
     response = requests.get(url)
     if response.encoding == 'ISO-8859-1':
-        response.encoding = 'UTF-8'#response.apparent_encoding
+        response.encoding = 'UTF-8'
     html = response.text
     return BeautifulSoup(html, 'html.parser')
 
@@ -34,21 +35,23 @@ def get_all_recipes() -> list:
             recipe_page = get_html(link)
             full_recipe['description'] = get_description(recipe_page)
             full_recipe['ingredients'] = get_ingredients(recipe_page)
-            full_recipe['author'] = ''
-            full_recipe['steps'] = []
-            full_recipe['time'] = ''
-            full_recipe['serves'] = ''
+            
+            author, time, serves = get_technical_specifications(recipe_page)
+            full_recipe['author'] = author
+            full_recipe['time'] = time
+            full_recipe['serves'] = serves
+            
+            full_recipe['steps'] = get_steps(recipe_page)
             full_recipe['nutrients'] = {}
             recipe_list.append(full_recipe)
     return recipe_list
 
-def get_description(recipe) -> str:
-    recipe_description = recipe.find('div', id='recipe_header')
+def get_description(recipe_page) -> str:
+    recipe_description = recipe_page.find('div', id='recipe_header')
     return recipe_description.find('p').text.strip()
 
-def get_ingredients(recipe) -> list:
-    sub_headers = recipe.findAll('h5')
-    ingredient_sections = [h5 for h5 in sub_headers if h5.text.lower() == 'ingredientes']
+def get_ingredients(recipe_page) -> list:
+    ingredient_sections = recipe_page.find_all('h5', string=re.compile('ingredientes', re.IGNORECASE))
     ingredients = []
     for section in ingredient_sections:
         ingredients_ul = section.find_next_sibling()
@@ -56,5 +59,22 @@ def get_ingredients(recipe) -> list:
         
     return ingredients
 
+def get_technical_specifications(recipe_page):
+    stats_section = recipe_page.find('dl', class_='stats')
+    values = stats_section.find_all('dd')
+    return (x.text.strip() for x in values)
+
+def get_steps(recipe_page) -> list:
+    steps_sctions = recipe_page.find_all('h5', string=re.compile('modo de preparo', re.IGNORECASE))
+    steps = []
+    for section in steps_sctions:
+        parent_section = section.find_parent('div').find_parent('div')
+        steps_li = parent_section.find_all('li')
+        steps.append([li.text.strip() for li in steps_li])
+        
+    return steps
+
+
+all_recipes = []
 all_recipes = get_all_recipes()
-print(all_recipes[:10])
+# print(all_recipes[40:42])
