@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
 
 base_url = 'https://panelinha.com.br/categoria/doces'
 
@@ -74,7 +75,6 @@ def get_steps(recipe_page) -> list:
         
     return steps
 
-
-all_recipes = []
-all_recipes = get_all_recipes()
-# print(all_recipes[40:42])
+recipes = get_all_recipes()
+with open('panelinha_dessert_recipes.json', 'w', encoding='utf-8') as f:
+    f.write(json.dumps(recipes, indent=2))
